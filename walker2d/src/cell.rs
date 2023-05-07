@@ -14,6 +14,17 @@ pub struct Cell {
 }
 
 impl Cell {
+    /**
+     * Create a new cell
+     *
+     * # Examples
+     * ```
+     * use walker2d::cell::Cell;
+     * let cell = Cell::new(0, 0);
+     * assert!(cell.x == 0);
+     * assert!(cell.x == 0);
+     * ```
+     */
     pub fn new(x: u32, y: u32) -> Self {
         Self {
             x,
@@ -26,36 +37,48 @@ impl Cell {
 
     /**
      * Add an agent to the cell
+     *
+     * # Examples
+     * ```
+     * use walker2d::cell::Cell;
+     * use walker2d::agent::{Agent, AgentSpecies};
+     * let mut cell = Cell::new(0, 0);
+     * let agent1 = Agent::new("test1".to_string(), AgentSpecies::Red);
+     * let agent2 = Agent::new("test2".to_string(), AgentSpecies::Blue);
+     * cell.add_agent(agent1);
+     * cell.add_agent(agent2);
+     *
+     * assert!(cell.agents.len() == 2);
      */
     pub fn add_agent(&mut self, agent: Agent) {
         self.agents.insert(agent);
     }
 
     /**
-     * Remove an agent from the cell
+     * Count the number of agents in this cell
      */
-    fn remove_agent(&mut self, agent: Agent) -> Option<Agent> {
-        return self.agents.take(&agent);
-    }
-
-    /**
-     * Move an agent from this cell to another
-     * If the target cell is not empty, the agent will be moved to a target neighbour
-     */
-    fn move_agent(&mut self, agent: Agent, target: &mut Cell) {
-        let removed_agent = self.remove_agent(agent);
-
-        match removed_agent {
-            Some(agent) => target.add_agent(agent),
-            None => (),
-        }
-    }
-
-    fn num_agents(&self, species: AgentSpecies) -> usize {
+    pub fn num_agents(&self, species: AgentSpecies) -> usize {
         return self
             .agents
             .iter()
             .filter(|agent| agent.species == species)
             .count();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn add_agent() {
+        let mut cell = Cell::new(0, 0);
+        let agent = Agent::new("test".to_string(), AgentSpecies::Red);
+
+        cell.add_agent(agent.clone());
+
+        assert_eq!(cell.agents.len(), 1);
+        assert_eq!(cell.agents.contains(&agent), true);
     }
 }
