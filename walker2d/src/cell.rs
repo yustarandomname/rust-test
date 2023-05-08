@@ -50,7 +50,7 @@ impl Cell {
      * ## examples
      * ```
      * use walker2d::cell::Cell;
-     * use walker2d::agent::AgentSpecies;
+     * use walker2d::agent::{Agent, AgentSpecies};
      * use walker2d::hyper_params::HyperParams;
      * let mut cell = Cell::new(0, 0, HyperParams::default());
      * cell.agents.insert(Agent::new("1".to_string(), AgentSpecies::Blue));

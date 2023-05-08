@@ -8,29 +8,14 @@ pub enum AgentSpecies {
 
 impl AgentSpecies {
     /**
-    * Iterate over all possible agent species
-    # Examples
-    * ```
-    * use walker2d::agent::{AgentSpecies};
-    * assert_eq!(AgentSpecies::iter().len(), 2);
-    * assert!(AgentSpecies::iter().contains(&AgentSpecies::Red));
-    * assert!(AgentSpecies::iter().contains(&AgentSpecies::Blue));
-    * ```
-    */
+     * Iterate over all possible agent species
+     */
     pub fn iter() -> All<AgentSpecies> {
         all::<AgentSpecies>()
     }
 
     /**
      * A vector of all possible agent species
-     *
-     * # Examples
-     * ```
-     * use walker2d::agent::{AgentSpecies};
-     * assert_eq!(AgentSpecies::all().len(), 2);
-     * assert!(AgentSpecies::all().contains(&AgentSpecies::Red));
-     * assert!(AgentSpecies::all().contains(&AgentSpecies::Blue));
-     * ```
      */
     pub fn all() -> Vec<AgentSpecies> {
         all::<AgentSpecies>().collect::<Vec<_>>()
@@ -55,6 +40,24 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     use super::*;
+
+    #[test]
+    fn all_species() {
+        let species = AgentSpecies::all();
+
+        assert_eq!(species.len(), 2);
+        assert!(species.contains(&AgentSpecies::Red));
+        assert!(species.contains(&AgentSpecies::Blue));
+    }
+
+    #[test]
+    fn iter_species() {
+        let species = AgentSpecies::iter().collect::<Vec<AgentSpecies>>();
+
+        assert_eq!(species.len(), 2);
+        assert!(species.contains(&AgentSpecies::Red));
+        assert!(species.contains(&AgentSpecies::Blue));
+    }
 
     #[test]
     fn new_agent() {
