@@ -1,7 +1,40 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+use enum_iterator::{all, All, Sequence};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Sequence)]
 pub enum AgentSpecies {
     Red,
     Blue,
+}
+
+impl AgentSpecies {
+    /**
+    * Iterate over all possible agent species
+    # Examples
+    * ```
+    * use walker2d::agent::{AgentSpecies};
+    * assert_eq!(AgentSpecies::iter().len(), 2);
+    * assert!(AgentSpecies::iter().contains(&AgentSpecies::Red));
+    * assert!(AgentSpecies::iter().contains(&AgentSpecies::Blue));
+    * ```
+    */
+    pub fn iter() -> All<AgentSpecies> {
+        all::<AgentSpecies>()
+    }
+
+    /**
+     * A vector of all possible agent species
+     *
+     * # Examples
+     * ```
+     * use walker2d::agent::{AgentSpecies};
+     * assert_eq!(AgentSpecies::all().len(), 2);
+     * assert!(AgentSpecies::all().contains(&AgentSpecies::Red));
+     * assert!(AgentSpecies::all().contains(&AgentSpecies::Blue));
+     * ```
+     */
+    pub fn all() -> Vec<AgentSpecies> {
+        all::<AgentSpecies>().collect::<Vec<_>>()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

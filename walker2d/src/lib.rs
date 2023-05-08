@@ -1,12 +1,13 @@
 pub mod agent;
 pub mod cell;
+pub mod hyper_params;
 
 use agent::{Agent, AgentSpecies};
 use cell::Cell;
+use hyper_params::HyperParams;
 use rand::prelude::*;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use std::collections::HashSet;
 
 // UNIVERSE
 #[derive(Debug, Clone, PartialEq)]
@@ -23,8 +24,9 @@ impl Universe {
      */
     pub fn new(size: u32) -> Universe {
         let prng = ChaCha8Rng::seed_from_u64(2);
+        let hyper_params = HyperParams::new(0.5, 0.5, 1.0 / 100.0);
         let cells = (0..size * size)
-            .map(|i| Cell::new(i % size, i / size))
+            .map(|i| Cell::new(i % size, i / size, hyper_params))
             .collect();
 
         Universe {
@@ -80,29 +82,52 @@ impl Universe {
         (rw * self.size + col) as usize
     }
 
-    pub fn tick(&mut self) {
-        // Clone the next itteration of cells and reset the agents
-        let mut next_cells: Vec<Cell> = self
+    fn get_next_cells(&self) -> Vec<Cell> {
+        let next_cells: Vec<Cell> = self
             .cells
             .iter()
             .cloned()
             .map(|mut cell| {
-                cell.agents = HashSet::new();
+                cell.reset();
                 cell
             })
             .collect();
+        return next_cells;
+    }
+
+    pub fn tick(&mut self) {
+        // Clone the next itteration of cells and reset the agents
+        let mut next_cells: Vec<Cell> = self.get_next_cells();
+
+        // Calculate grafitti
+        for cell in self.cells.iter_mut() {
+            cell.increment_graffiti(self.size);
+        }
 
         // Iterate over the cells and move agents
         for cell in self.cells.iter() {
             for agent in cell.agents.iter() {
-                let neighbours = self.neighbours_of(cell.x, cell.y);
+                let neighbours = self.neighbours_of(cell.x, cell.y); // [Cell(ps: 5.0), Cell(ps: 10.0), Cell(ps: 2.0), Cell(ps: 3.0)]
+                let mut neighbour_cum_pull: Vec<f32> = vec![]; // [5.0, 15.0, 17.0, 20.0]
+                let mut total_strength = 0.0;
 
-                let random_neigh = self.prng.clone().gen_range(0..neighbours.len()); // Get pseudo random neighbour 0..3
-                let neighbour_cell = neighbours[random_neigh];
+                for cell in neighbours.clone() {
+                    let pull_strength = *cell.pull_strength.get(&agent.species).unwrap_or(&0.0);
+                    neighbour_cum_pull.push(pull_strength + total_strength);
+                    total_strength += pull_strength;
+                }
 
-                let next_cell_idx = self.get_index(neighbour_cell.y, neighbour_cell.x);
-                let new_agent = agent.clone();
-                next_cells[next_cell_idx].add_agent(new_agent);
+                let random_neigh = self.prng.clone().gen_range(0.0..total_strength);
+
+                for (index, strength) in neighbour_cum_pull.iter_mut().enumerate() {
+                    if *strength > random_neigh {
+                        let next_cell_idx =
+                            self.get_index(neighbours[index].y, neighbours[index].x);
+                        let new_agent = agent.clone();
+                        next_cells[next_cell_idx].add_agent(new_agent);
+                        break;
+                    }
+                }
             }
         }
 
