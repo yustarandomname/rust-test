@@ -8,6 +8,13 @@ use hyper_params::HyperParams;
 use rand::prelude::*;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use rayon::prelude::*;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComputationType {
+    Serial,
+    Parallel,
+}
 
 // UNIVERSE
 #[derive(Debug, Clone, PartialEq)]
@@ -95,9 +102,24 @@ impl Universe {
         return next_cells;
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, computation: ComputationType) {
+        if computation == ComputationType::Parallel {
+            self.tick_parallel();
+        } else {
+            self.tick_serial();
+        }
+    }
+}
+
+/**
+ * SERIAL implementations of the tick function
+ */
+impl Universe {
+    fn tick_serial(&mut self) {
         // Clone the next itteration of cells and reset the agents
         let mut next_cells: Vec<Cell> = self.get_next_cells();
+
+        // let cells = Arc::new(Mutex::new(self.cells.clone()));
 
         // Calculate grafitti
         for cell in self.cells.iter_mut() {
@@ -136,6 +158,32 @@ impl Universe {
     }
 }
 
+/**
+ * Parallel implementation of the tick function
+ */
+impl Universe {
+    fn tick_parallel(&mut self) {
+        // Clone the next itteration of cells and reset the agents
+        // let mut next_cells: Vec<Cell> = self.get_next_cells();
+
+        // Calculate grafitti
+        self.cells.par_iter_mut().for_each(|cell| {
+            cell.increment_graffiti(self.size);
+        });
+        let mut next_cells: Vec<Cell> = self.get_next_cells();
+
+        // Iterate over the cells and move agents
+        let agents = self
+            .cells
+            .iter()
+            .flat_map(|cell| cell.agents.iter())
+            .collect::<Vec<&Agent>>();
+
+        self.iteration += 1;
+        self.cells = next_cells;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
@@ -144,6 +192,32 @@ mod tests {
 
     fn number_of_agents_in_cells(cells: &Vec<Cell>) -> usize {
         cells.iter().fold(0, |acc, cell| acc + cell.agents.len())
+    }
+
+    #[test]
+    fn test_parallel_increment_grafitti() {
+        let mut u1 = Universe::new(100);
+        u1.add_agents(100000);
+
+        let mut u2 = u1.clone();
+
+        let now = Instant::now();
+
+        for _ in 0..300 {
+            u1.tick(ComputationType::Parallel);
+        }
+
+        println!("Time taken multi thread: {:?}", now.elapsed());
+
+        let now = Instant::now();
+
+        for i in 0..300 {
+            if i % 10 == 0 {
+                println!("Serial tick: {} in {:?}", i, now.elapsed())
+            }
+            u2.tick(ComputationType::Serial);
+        }
+        println!("Time taken serial: {:?}", now.elapsed());
     }
 
     #[test]
@@ -159,7 +233,7 @@ mod tests {
             (AGENT_SIZE * 2) as usize
         );
 
-        u.tick();
+        u.tick(ComputationType::Serial);
         assert_eq!(
             number_of_agents_in_cells(&u.cells),
             (AGENT_SIZE * 2) as usize
@@ -219,8 +293,8 @@ mod tests {
 
         let u_before_tick = u1.clone();
 
-        u1.tick();
-        u2.tick();
+        u1.tick(ComputationType::Serial);
+        u2.tick(ComputationType::Parallel);
         assert_ne!(u_before_tick, u2);
         assert_eq!(u1.cells[0].agents, u2.cells[0].agents);
     }
@@ -230,7 +304,7 @@ mod tests {
         let start = Instant::now();
         let mut u = Universe::new(100);
         u.add_agents(100000);
-        u.tick();
+        u.tick(ComputationType::Serial);
 
         println!("Time to add agents: {:?}", start.elapsed());
 

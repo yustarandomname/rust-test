@@ -103,7 +103,8 @@ impl Cell {
      *
      * assert!(cell.agents.len() == 2);
      */
-    pub fn add_agent(&mut self, agent: Agent) {
+    pub fn add_agent(&mut self, mut agent: Agent) {
+        *agent.parent_cell = &self;
         self.agents.insert(agent);
     }
 }

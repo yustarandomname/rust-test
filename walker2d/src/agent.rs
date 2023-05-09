@@ -1,5 +1,7 @@
 use enum_iterator::{all, All, Sequence};
 
+use crate::cell::Cell;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Sequence)]
 pub enum AgentSpecies {
     Red,
@@ -22,15 +24,20 @@ impl AgentSpecies {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Agent {
     id: String,
     pub species: AgentSpecies,
+    pub parent_cell: &Cell,
 }
 
 impl Agent {
-    pub fn new(id: String, species: AgentSpecies) -> Agent {
-        Agent { id, species }
+    pub fn new(id: String, species: AgentSpecies, parent_cell: &Cell) -> Agent {
+        Agent {
+            id,
+            species,
+            parent_cell,
+        }
     }
 }
 
@@ -38,6 +45,8 @@ impl Agent {
 mod tests {
     use rand::{RngCore, SeedableRng};
     use rand_chacha::ChaCha8Rng;
+
+    use crate::hyper_params::HyperParams;
 
     use super::*;
 
@@ -61,7 +70,8 @@ mod tests {
 
     #[test]
     fn new_agent() {
-        let agent = Agent::new("test".to_string(), AgentSpecies::Red);
+        let cell = Cell::new(0, 0, HyperParams::new(0.5, 0.5, 0.5));
+        let agent = Agent::new("test".to_string(), AgentSpecies::Red, &cell);
 
         assert_eq!(agent.id, "test");
         assert_eq!(agent.species, AgentSpecies::Red);
