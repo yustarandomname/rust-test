@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum AgentSpecies {
     Red,
     Blue,
@@ -81,7 +81,11 @@ impl Universe2D {
             let agent = Agent {
                 id: index.to_string(),
                 node_index,
-                species: AgentSpecies::Red,
+                species: if index % 2 == 0 {
+                    AgentSpecies::Red
+                } else {
+                    AgentSpecies::Blue
+                },
             };
             match agents.get_mut(&node_index) {
                 Some(agents) => {
@@ -113,6 +117,15 @@ mod test {
             .fold(0, |acc, (_, agents)| acc + agents.len() as u32)
     }
 
+    fn total_agent_size_of_species(universe: &Universe2D, species: AgentSpecies) -> u32 {
+        universe.agents.iter().fold(0, |acc, (_, agents)| {
+            acc + agents
+                .iter()
+                .filter(|agent| agent.species == species)
+                .count() as u32
+        })
+    }
+
     #[test]
     fn test_universe2d() {
         let universe = Universe2D::new(4, 100);
@@ -125,5 +138,13 @@ mod test {
         }
 
         assert_eq!(total_agent_size(&universe), 200);
+        assert_eq!(
+            total_agent_size_of_species(&universe, AgentSpecies::Blue),
+            100
+        );
+        assert_eq!(
+            total_agent_size_of_species(&universe, AgentSpecies::Red),
+            100
+        );
     }
 }
