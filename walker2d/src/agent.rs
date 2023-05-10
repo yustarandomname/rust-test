@@ -28,16 +28,11 @@ impl AgentSpecies {
 pub struct Agent {
     id: String,
     pub species: AgentSpecies,
-    pub parent_cell: &Cell,
 }
 
 impl Agent {
-    pub fn new(id: String, species: AgentSpecies, parent_cell: &Cell) -> Agent {
-        Agent {
-            id,
-            species,
-            parent_cell,
-        }
+    pub fn new(id: String, species: AgentSpecies) -> Agent {
+        Agent { id, species }
     }
 }
 
