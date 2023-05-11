@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 enum-iterator = "1.4.1"
 graph = "0.3.0"
+pad = "0.1.6"
 petgraph = "0.6.3"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
