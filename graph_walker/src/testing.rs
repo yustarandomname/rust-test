@@ -4,21 +4,24 @@ mod test_1 {
         sync::{Arc, Mutex},
     };
 
-    use rand::seq::SliceRandom;
+    use rand::Rng;
     use rayon::prelude::*;
 
     use crate::{AgentSpecies, Node};
 
+    fn default_node() -> Node {
+        let mut edges = HashMap::new();
+        edges.insert(0, vec![1, 2, 3, 4]);
+        let node = Node::new(0, &edges);
+
+        assert_eq!(node.blue_agents, 0);
+        assert_eq!(node.red_agents, 0);
+        node
+    }
+
     #[test]
     fn it_works_with_one_node() {
-        // 0
-        let mut node = Node {
-            neighbours: vec![],
-            grafitti: HashMap::new(),
-            pull_strength: HashMap::new(),
-            blue_agents: 0,
-            red_agents: 0,
-        };
+        let mut node = default_node();
 
         let agents: Vec<u32> = (0..10).into_par_iter().map(|_| 1).collect();
 
@@ -29,13 +32,7 @@ mod test_1 {
 
     #[test]
     fn it_works_with_one_node_arc() {
-        let node = Node {
-            neighbours: vec![],
-            grafitti: HashMap::new(),
-            pull_strength: HashMap::new(),
-            blue_agents: 0,
-            red_agents: 0,
-        };
+        let node = default_node();
 
         let arc_node = Arc::new(Mutex::new(node));
 
@@ -49,23 +46,17 @@ mod test_1 {
 
     #[test]
     fn it_works_with_ten_node_arc() {
-        let node = Node {
-            neighbours: vec![],
-            grafitti: HashMap::new(),
-            pull_strength: HashMap::new(),
-            blue_agents: 0,
-            red_agents: 0,
-        };
-        let nodes = vec![node.clone(); 10];
+        let nodes = vec![default_node(); 10];
 
         let arc_node = Arc::new(Mutex::new(nodes));
-        let prng = rand::thread_rng();
-        const SIZE: usize = 100000;
+        const SIZE: usize = 1000000;
 
         (0..SIZE).into_par_iter().for_each(|_| {
+            let rng = rand::thread_rng();
             let mut nodes_guard = arc_node.lock().unwrap();
             // let node = nodes_guard.choose_mut(&mut prng).unwrap();
-            nodes_guard[0].add_agents(1, AgentSpecies::Blue);
+            let node_idx = rng.clone().gen_range(0..nodes_guard.len());
+            nodes_guard[node_idx].add_agents(1, AgentSpecies::Blue);
         });
 
         let total_blue_agents: u32 = arc_node
