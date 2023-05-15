@@ -1,7 +1,9 @@
 mod hyper_params;
+mod neighbour_data;
 mod testing;
 
 use hyper_params::HyperParams;
+use neighbour_data::{NeigbourIndeces, NeighbourAgentsOut};
 use oorandom::Rand32;
 use pad::PadStr;
 use rayon::prelude::*;
@@ -19,28 +21,32 @@ enum AgentSpecies {
     Blue,
 }
 
-const AGENT_SPECIES: [AgentSpecies; 2] = [AgentSpecies::Red, AgentSpecies::Blue];
-
 #[derive(Debug, Clone)]
 struct Node {
     pub index: u32,
-    pub neighbours: Vec<u32>, // indices of neighbours
-    pub grafitti: [f32; 2],
+    pub neighbours: NeigbourIndeces, // indices of neighbours
+    pub grafitti: [f32; 2],          // [Red_graffiti, Blue_graffiti]
     pub push_strength: [f32; 2],
     pub blue_agents: u32,
     pub red_agents: u32,
+    pub agents_out: [NeighbourAgentsOut; 2], // amount of outgoing agents per species
 }
 
 impl Node {
-    pub fn new(index: u32, edges: &HashMap<u32, Vec<u32>>) -> Node {
+    pub fn new(index: u32, edges: &HashMap<u32, NeigbourIndeces>) -> Node {
         Node {
             index,
-            neighbours: edges.get(&index).unwrap().to_vec(),
+            neighbours: edges.get(&index).unwrap().to_owned(),
             grafitti: [0.0; 2],
             push_strength: [0.0; 2],
             blue_agents: 0,
             red_agents: 0,
+            agents_out: [NeighbourAgentsOut::new(0, 0, 0, 0); 2],
         }
+    }
+
+    pub fn get_prng(&self) -> Rand32 {
+        Rand32::new((self.index + 1) as u64 * (self.blue_agents + self.red_agents + 1) as u64)
     }
 
     pub fn get_push_strength(&self, species: &AgentSpecies) -> f32 {
@@ -64,7 +70,7 @@ impl Node {
         }
     }
 
-    pub fn update_grafitti_and_push_strength(&mut self, grid_size: u32) {
+    pub fn update_grafitti_and_push_strength(&mut self) {
         // 0 - Decrement current grafitti by lambda
         self.grafitti = self.grafitti.map(|entry| entry * HYPER_PARAMS.lambda);
 
@@ -72,45 +78,62 @@ impl Node {
         self.grafitti[0] += HYPER_PARAMS.gamma * self.red_agents as f32;
         self.grafitti[1] += HYPER_PARAMS.gamma * self.blue_agents as f32;
 
-        // 2 - Calculate push strength
-        let l = 1.0 / grid_size as f32;
-
-        self.push_strength = self.grafitti.map(|entry| {
-            let xi = entry / (l * 2.0);
-            E.powf(-HYPER_PARAMS.beta * xi)
-        });
+        self.push_strength[0] += E.powf(-HYPER_PARAMS.beta * self.grafitti[0]);
+        self.push_strength[1] += E.powf(-HYPER_PARAMS.beta * self.grafitti[1]);
     }
 
-    pub fn new_agents_per_species(
-        &self,
-        prng: &mut Rand32,
-        nodes: &Vec<Node>,
-    ) -> Vec<Vec<(u32, u32)>> {
-        type NewAgents = Vec<(u32, u32)>;
-        AGENT_SPECIES
-            .iter()
-            .map(|species| {
-                let neighbours = &self.neighbours;
-                let _neighbour_strengths = neighbours
-                    .iter()
-                    .map(|neighbour_idx| nodes[*neighbour_idx as usize].get_push_strength(species))
-                    .collect::<Vec<f32>>();
+    pub fn move_agents_out(&mut self, nodes: &Vec<Node>, _grid_size: u32) {
+        let neighbours_idx = &self.neighbours;
 
-                // new agents for each neighbour
-                // [key: neighbour index, value: new agents]
-                let mut new_agents: NewAgents = neighbours
-                    .iter()
-                    .map(|neighbour_idx| (*neighbour_idx, 0))
-                    .collect();
+        // TODO: check if algorithm still works without grid_size
+        // 1 - Calculate neighbour strengths
+        let mut total_neigh_push_strengths_red = 0.0;
+        let mut total_neigh_push_strengths_blue = 0.0;
 
-                for _ in 0..self.agents_with_species(species) {
-                    let new_node_index = prng.rand_range(0..neighbours.len() as u32);
-                    new_agents[new_node_index as usize].1 += 1;
-                }
+        let neighbour_push_stengths_iter = neighbours_idx.into_iter().map(|neighbour_idx| {
+            let neighbour = &nodes[neighbour_idx as usize];
+            let red_push = neighbour.get_push_strength(&AgentSpecies::Red);
+            let blue_push = neighbour.get_push_strength(&AgentSpecies::Blue);
 
-                new_agents
-            })
-            .collect::<Vec<NewAgents>>()
+            total_neigh_push_strengths_red += red_push;
+            total_neigh_push_strengths_blue += blue_push;
+            (red_push, blue_push)
+        });
+
+        // neighbour_push_stengths.0 is a Vec of all red neighbour push strengths
+        // neighbour_push_stengths.1 is a Vec of all blue neighbour push strengths
+        let neighbour_push_stengths: (Vec<f32>, Vec<f32>) = neighbour_push_stengths_iter.unzip(); // Vec<(ps1_red, ps2_blue), (ps_2_red, ps2_blue)> => (Vec(ps1_red, ps_2_red), Vec(ps1_blue, ps2_blue))
+        assert!(neighbour_push_stengths.0.len() == neighbour_push_stengths.1.len());
+
+        let mut red_agents_out = NeigbourIndeces::new(0, 0, 0, 0);
+        let mut blue_agents_out = NeigbourIndeces::new(0, 0, 0, 0);
+        let mut prng = self.get_prng();
+
+        // 2 - Move agents out
+        for _ in 0..self.red_agents {
+            red_agents_out.add_agent_to_random_cell(
+                &neighbour_push_stengths.1,      // vec of blue push strengths
+                total_neigh_push_strengths_blue, // sum of all blue push strengths
+                &mut prng,
+            );
+        }
+
+        for _ in 0..self.blue_agents {
+            blue_agents_out.add_agent_to_random_cell(
+                &neighbour_push_stengths.0,     // vec of red push strengths
+                total_neigh_push_strengths_red, // sum of all red push strengths
+                &mut prng,
+            );
+        }
+
+        self.agents_out = [red_agents_out, blue_agents_out];
+    }
+
+    pub fn move_agents_in(&mut self, _nodes: &Vec<Node>) {
+        let _neighbours_idx = &self.neighbours;
+
+        // 1 - Move agents in
+        // TODO: move opposite side for each neighbour in
     }
 }
 
@@ -124,7 +147,7 @@ impl Universe2D {
     pub fn new(size: u32, agent_size: u32) -> Universe2D {
         let mut prng = Rand32::new(100);
 
-        let mut edges: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut edges: HashMap<u32, NeigbourIndeces> = HashMap::new(); // TODO: convert to array
 
         for y in 0..size {
             for x in 0..size {
@@ -135,15 +158,10 @@ impl Universe2D {
                 let top_index = (y + size - 1) % size * size + x;
                 let bottom_index = (y + 1) % size * size + x;
 
-                let mut new_edges = vec![left_index, right_index, top_index, bottom_index];
-                new_edges.sort();
+                let new_edges =
+                    NeigbourIndeces::new(top_index, right_index, bottom_index, left_index);
 
-                match edges.get_mut(&index) {
-                    Some(_) => {}
-                    None => {
-                        edges.insert(index, new_edges);
-                    }
-                }
+                edges.insert(index, new_edges);
             }
         }
 
@@ -151,6 +169,7 @@ impl Universe2D {
             .map(|index| Node::new(index, &edges))
             .collect();
 
+        // Set initial agents
         (0..agent_size * 2).for_each(|id| {
             let node_index = prng.rand_range(0..(size * size));
             let species = if id % 2 == 0 {
@@ -175,41 +194,21 @@ impl Universe2D {
         // 0) update grafitti in nodes
         // 10 iter => 12ms
         self.nodes.par_iter_mut().for_each(|node| {
-            node.update_grafitti_and_push_strength(self.size);
+            node.update_grafitti_and_push_strength();
+        });
+        let nodes_with_graffiti = self.nodes.clone();
+
+        // 1) move agents out
+        self.nodes.par_iter_mut().for_each(|node| {
+            node.move_agents_out(&nodes_with_graffiti, self.size);
         });
 
-        // 1) move agents out to other nodes
-        // 10 iter => 12ms
-        let mut new_nodes: Vec<Node> = self
-            .nodes
-            .par_iter()
-            .map(|node| {
-                let mut node = node.clone();
-                node.blue_agents = 0;
-                node.red_agents = 0;
-                node
-            })
-            .collect();
+        // 2) move agents in
+        let nodes_with_agents_out = self.nodes.clone();
+        self.nodes.par_iter_mut().for_each(|node| {
+            node.move_agents_in(&nodes_with_agents_out);
+        });
 
-        type NewAgents = Vec<(u32, u32)>;
-        let new_agents_per_species_per_node: Vec<Vec<NewAgents>> = self
-            .nodes
-            .par_iter()
-            .map(|node| {
-                let mut prng = Rand32::new((self.iteration as u64 + 1) * node.index as u64);
-                return node.new_agents_per_species(&mut prng, &self.nodes);
-            })
-            .collect();
-
-        for new_agents_per_species in &new_agents_per_species_per_node {
-            for (species, new_agents) in new_agents_per_species.iter().enumerate() {
-                for (neighbour_idx, new_agent_count) in new_agents.iter() {
-                    let neighbour = &mut new_nodes[*neighbour_idx as usize];
-                    neighbour.add_agents(*new_agent_count, AGENT_SPECIES[species]);
-                }
-            }
-        }
-        self.nodes = new_nodes;
         self.iteration += 1;
     }
 }
@@ -285,25 +284,10 @@ impl fmt::Display for Universe2D {
 }
 
 mod test {
+
     use std::time::Instant;
 
     use super::*;
-
-    fn total_agent_size(universe: &Universe2D) -> u32 {
-        universe
-            .nodes
-            .iter()
-            .map(|node| node.blue_agents + node.red_agents)
-            .sum()
-    }
-
-    fn total_agent_size_of_species(universe: &Universe2D, species: AgentSpecies) -> u32 {
-        universe
-            .nodes
-            .iter()
-            .map(|node| node.agents_with_species(&species))
-            .sum()
-    }
 
     #[test]
     fn test_universe2d() {
@@ -312,7 +296,23 @@ mod test {
         for node in &universe.nodes {
             // FOR DEBUG println!("{:?}", node);
 
-            assert_eq!(node.neighbours.len(), 4);
+            assert_eq!(node.neighbours.size, 4);
+        }
+
+        fn total_agent_size_of_species(universe: &Universe2D, species: AgentSpecies) -> u32 {
+            universe
+                .nodes
+                .iter()
+                .map(|node| node.agents_with_species(&species))
+                .sum()
+        }
+
+        fn total_agent_size(universe: &Universe2D) -> u32 {
+            universe
+                .nodes
+                .iter()
+                .map(|node| node.blue_agents + node.red_agents)
+                .sum()
         }
 
         assert_eq!(total_agent_size(&universe), 200);
@@ -350,7 +350,7 @@ mod test {
         for _ in 0..300 {
             universe.tick();
         }
-        // 1.3s
+        // 2.651681208s
         println!("{:?}", start.elapsed());
     }
 }
