@@ -129,11 +129,34 @@ impl Node {
         self.agents_out = [red_agents_out, blue_agents_out];
     }
 
-    pub fn move_agents_in(&mut self, _nodes: &Vec<Node>) {
-        let _neighbours_idx = &self.neighbours;
+    pub fn move_agents_in(&mut self, nodes: &Vec<Node>) {
+        let neighbours_idx = &self.neighbours.clone();
+        self.red_agents = 0;
+        self.blue_agents = 0;
 
-        // 1 - Move agents in
-        // TODO: move opposite side for each neighbour in
+        // Move agents from the top neighbour to this node which is at the bottom of the top neighbour
+        let top_idx = neighbours_idx.top;
+        let top_node_agents = nodes[top_idx as usize].agents_out;
+        self.add_agents(top_node_agents[0].bottom, AgentSpecies::Red); // top_node_agents[0] is the red agents out of the top neighbour
+        self.add_agents(top_node_agents[1].bottom, AgentSpecies::Blue); // top_node_agents[1] is the blue agents out of the top neighbour
+
+        // Move agents from the right neighbour to this node which is at the left of the right neighbour
+        let right_idx = neighbours_idx.right;
+        let right_node_agents = nodes[right_idx as usize].agents_out;
+        self.add_agents(right_node_agents[0].left, AgentSpecies::Red); // right_node_agents[0] is the red agents out of the right neighbour
+        self.add_agents(right_node_agents[1].left, AgentSpecies::Blue); // right_node_agents[1] is the blue agents out of the right neighbour
+
+        // Move agents from the bottom neighbour to this node which is at the top of the bottom neighbour
+        let bottom_idx = neighbours_idx.bottom;
+        let bottom_node_agents = nodes[bottom_idx as usize].agents_out;
+        self.add_agents(bottom_node_agents[0].top, AgentSpecies::Red); // bottom_node_agents[0] is the red agents out of the bottom neighbour
+        self.add_agents(bottom_node_agents[1].top, AgentSpecies::Blue); // bottom_node_agents[1] is the blue agents out of the bottom neighbour
+
+        // Move agents from the left neighbour to this node which is at the right of the left neighbour
+        let left_idx = neighbours_idx.left;
+        let left_node_agents = nodes[left_idx as usize].agents_out;
+        self.add_agents(left_node_agents[0].right, AgentSpecies::Red); // left_node_agents[0] is the red agents out of the left neighbour
+        self.add_agents(left_node_agents[1].right, AgentSpecies::Blue); // left_node_agents[1] is the blue agents out of the left neighbour
     }
 }
 
@@ -288,6 +311,14 @@ mod test {
 
     use super::*;
 
+    fn total_agent_size(universe: &Universe2D) -> u32 {
+        universe
+            .nodes
+            .iter()
+            .map(|node| node.blue_agents + node.red_agents)
+            .sum()
+    }
+
     #[test]
     fn test_universe2d() {
         let universe = Universe2D::new(4, 100);
@@ -306,14 +337,6 @@ mod test {
                 .sum()
         }
 
-        fn total_agent_size(universe: &Universe2D) -> u32 {
-            universe
-                .nodes
-                .iter()
-                .map(|node| node.blue_agents + node.red_agents)
-                .sum()
-        }
-
         assert_eq!(total_agent_size(&universe), 200);
         assert_eq!(
             total_agent_size_of_species(&universe, AgentSpecies::Blue),
@@ -328,16 +351,13 @@ mod test {
     }
 
     #[test]
-    fn test_tick() {
+    fn test_tick_agent_equal() {
         let mut universe = Universe2D::new(4, 100);
 
-        for _ in 0..10 {
-            universe.tick();
-        }
+        assert_eq!(total_agent_size(&universe), 200, "0 iteration agents");
+        universe.tick();
+        assert_eq!(total_agent_size(&universe), 200, "1 iteration agents");
         println!("{}", universe);
-
-        // all notes should have a grafitti of >0.0
-        // todo!();
     }
 
     #[test]
