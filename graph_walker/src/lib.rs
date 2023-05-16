@@ -192,7 +192,6 @@ impl Universe2D {
 impl Universe2D {
     pub fn tick(&mut self) {
         // 0) update grafitti in nodes
-        // 10 iter => 12ms
         self.nodes.par_iter_mut().for_each(|node| {
             node.update_grafitti_and_push_strength();
         });
