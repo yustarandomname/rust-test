@@ -357,7 +357,13 @@ mod test {
         assert_eq!(total_agent_size(&universe), 200, "0 iteration agents");
         universe.tick();
         assert_eq!(total_agent_size(&universe), 200, "1 iteration agents");
-        println!("{}", universe);
+
+        universe.nodes.iter().for_each(|node| {
+            println!(
+                "i: {}, red: {}, blue: {}",
+                node.index, node.blue_agents, node.red_agents
+            );
+        })
     }
 
     #[test]
