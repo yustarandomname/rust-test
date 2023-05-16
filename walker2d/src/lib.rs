@@ -121,7 +121,7 @@ impl Universe {
 
         // let cells = Arc::new(Mutex::new(self.cells.clone()));
 
-        // Calculate grafitti
+        // Calculate graffiti
         for cell in self.cells.iter_mut() {
             cell.increment_graffiti(self.size);
         }
@@ -166,7 +166,7 @@ impl Universe {
         // Clone the next itteration of cells and reset the agents
         // let mut next_cells: Vec<Cell> = self.get_next_cells();
 
-        // Calculate grafitti
+        // Calculate graffiti
         self.cells.par_iter_mut().for_each(|cell| {
             cell.increment_graffiti(self.size);
         });
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parallel_increment_grafitti() {
+    fn test_parallel_increment_graffiti() {
         let mut u1 = Universe::new(100);
         u1.add_agents(100000);
 

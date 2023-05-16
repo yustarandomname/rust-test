@@ -1,5 +1,6 @@
 mod hyper_params;
 mod neighbour_data;
+mod species;
 mod testing;
 
 use hyper_params::HyperParams;
@@ -7,13 +8,8 @@ use neighbour_data::{NeigbourIndeces, NeighbourAgentsOut};
 use oorandom::Rand32;
 use pad::PadStr;
 use rayon::prelude::*;
+use species::{SpeciesGraffiti, SpeciesPushStrength};
 use std::{collections::HashMap, f32::consts::E, fmt};
-
-const HYPER_PARAMS: HyperParams = HyperParams {
-    gamma: 0.5,
-    lambda: 0.5,
-    beta: 1.0 / 100.0,
-};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum AgentSpecies {
@@ -25,8 +21,8 @@ enum AgentSpecies {
 struct Node {
     pub index: u32,
     pub neighbours: NeigbourIndeces, // indices of neighbours
-    pub grafitti: [f32; 2],          // [Red_graffiti, Blue_graffiti]
-    pub push_strength: [f32; 2],
+    pub graffiti: SpeciesGraffiti,   // [Red_graffiti, Blue_graffiti]
+    pub push_strength: SpeciesPushStrength,
     pub blue_agents: u32,
     pub red_agents: u32,
     pub agents_out: [NeighbourAgentsOut; 2], // amount of outgoing agents per species
@@ -37,8 +33,8 @@ impl Node {
         Node {
             index,
             neighbours: edges.get(&index).unwrap().to_owned(),
-            grafitti: [0.0; 2],
-            push_strength: [0.0; 2],
+            graffiti: SpeciesGraffiti::new(0.0, 0.0),
+            push_strength: SpeciesPushStrength::new(0.0, 0.0),
             blue_agents: 0,
             red_agents: 0,
             agents_out: [NeighbourAgentsOut::new(0, 0, 0, 0); 2],
@@ -51,8 +47,8 @@ impl Node {
 
     pub fn get_push_strength(&self, species: &AgentSpecies) -> f32 {
         match species {
-            AgentSpecies::Red => self.push_strength[0],
-            AgentSpecies::Blue => self.push_strength[1],
+            AgentSpecies::Red => self.push_strength.red,
+            AgentSpecies::Blue => self.push_strength.blue,
         }
     }
 
@@ -63,23 +59,28 @@ impl Node {
         }
     }
 
-    pub fn agents_with_species(&self, species: &AgentSpecies) -> u32 {
+    pub fn get_agents_with_species(&self, species: &AgentSpecies) -> u32 {
         match species {
             AgentSpecies::Blue => self.red_agents,
             AgentSpecies::Red => self.blue_agents,
         }
     }
 
-    pub fn update_grafitti_and_push_strength(&mut self) {
-        // 0 - Decrement current grafitti by lambda
-        self.grafitti = self.grafitti.map(|entry| entry * HYPER_PARAMS.lambda);
+    pub fn update_graffiti_and_push_strength(&mut self, hyper_params: &HyperParams) {
+        // 0 - Decrement current graffiti by lambda
+        self.graffiti.mult_all(hyper_params.lambda);
 
         // 1 - Increase grafiti by gamma * sum of same agent' count
-        self.grafitti[0] += HYPER_PARAMS.gamma * self.red_agents as f32;
-        self.grafitti[1] += HYPER_PARAMS.gamma * self.blue_agents as f32;
+        self.graffiti
+            .add_red(hyper_params.gamma * self.red_agents as f32);
+        self.graffiti
+            .add_blue(hyper_params.gamma * self.blue_agents as f32);
 
-        self.push_strength[0] += E.powf(-HYPER_PARAMS.beta * self.grafitti[0]);
-        self.push_strength[1] += E.powf(-HYPER_PARAMS.beta * self.grafitti[1]);
+        // 2 - Calculate push strength
+        self.push_strength
+            .set_red(E.powf(-hyper_params.beta * self.graffiti.red));
+        self.push_strength
+            .set_blue(E.powf(-hyper_params.beta * self.graffiti.blue));
     }
 
     pub fn move_agents_out(&mut self, nodes: &Vec<Node>, _grid_size: u32) {
@@ -164,6 +165,7 @@ pub struct Universe2D {
     size: u32,
     nodes: Vec<Node>,
     iteration: u32,
+    hyper_params: HyperParams,
 }
 
 impl Universe2D {
@@ -208,15 +210,20 @@ impl Universe2D {
             size,
             nodes,
             iteration: 0,
+            hyper_params: HyperParams::default(),
         }
+    }
+
+    pub fn set_hyper_params(&mut self, hyper_params: HyperParams) {
+        self.hyper_params = hyper_params;
     }
 }
 
 impl Universe2D {
     pub fn tick(&mut self) {
-        // 0) update grafitti in nodes
+        // 0) update graffiti in nodes
         self.nodes.par_iter_mut().for_each(|node| {
-            node.update_grafitti_and_push_strength();
+            node.update_graffiti_and_push_strength(&self.hyper_params);
         });
         let nodes_with_graffiti = self.nodes.clone();
 
@@ -250,8 +257,9 @@ impl fmt::Debug for Universe2D {
                 let node = &self.nodes[index as usize];
 
                 let blue_agents =
-                    self.nodes[index as usize].agents_with_species(&AgentSpecies::Blue);
-                let red_agents = self.nodes[index as usize].agents_with_species(&AgentSpecies::Red);
+                    self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Blue);
+                let red_agents =
+                    self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Red);
 
                 let blue_graffiti = node.blue_agents;
                 let red_graffiti = node.red_agents;
@@ -286,15 +294,15 @@ impl fmt::Display for Universe2D {
                 let index = y * self.size + x;
                 let node = &self.nodes[index as usize];
 
-                let blue_graffiti = node.grafitti[0];
-                let red_graffiti = node.grafitti[1];
+                let blue_graffiti = node.graffiti.blue;
+                let red_graffiti = node.graffiti.red;
 
                 let emoji = if blue_graffiti > red_graffiti {
-                    "🔵"
+                    "🟦"
                 } else if red_graffiti > blue_graffiti {
-                    "🔴"
+                    "🟥"
                 } else {
-                    "⚪"
+                    "⬜"
                 };
 
                 write!(f, "{emoji}")?;
@@ -305,6 +313,7 @@ impl fmt::Display for Universe2D {
     }
 }
 
+#[cfg(test)]
 mod test {
 
     use std::time::Instant;
@@ -333,7 +342,7 @@ mod test {
             universe
                 .nodes
                 .iter()
-                .map(|node| node.agents_with_species(&species))
+                .map(|node| node.get_agents_with_species(&species))
                 .sum()
         }
 
@@ -357,18 +366,58 @@ mod test {
         assert_eq!(total_agent_size(&universe), 200, "0 iteration agents");
         universe.tick();
         assert_eq!(total_agent_size(&universe), 200, "1 iteration agents");
+        universe.tick();
+        assert_eq!(total_agent_size(&universe), 200, "2 iteration agents");
 
-        universe.nodes.iter().for_each(|node| {
-            println!(
-                "i: {}, red: {}, blue: {}",
-                node.index, node.blue_agents, node.red_agents
-            );
-        })
+        let cache = vec![
+            (5, 5),
+            (8, 2),
+            (4, 11),
+            (13, 7),
+            (8, 6),
+            (6, 5),
+            (5, 8),
+            (5, 7),
+            (5, 5),
+            (4, 6),
+            (10, 4),
+            (3, 2),
+            (9, 8),
+            (6, 10),
+            (5, 7),
+            (4, 7),
+        ];
+
+        let mut universe_hash_i = 0;
+
+        universe
+            .nodes
+            .iter()
+            .zip(cache)
+            .for_each(|(node, cache_node_agents)| {
+                universe_hash_i += node.blue_agents + (node.red_agents * (node.index + 1));
+                print!(
+                    "({}, {}, {}), ",
+                    node.index, node.red_agents, node.blue_agents
+                );
+                assert_eq!(
+                    node.red_agents, cache_node_agents.0,
+                    "red agents on index {}",
+                    node.index
+                );
+                assert_eq!(
+                    node.blue_agents, cache_node_agents.1,
+                    "blue agents on index {}",
+                    node.index
+                );
+            });
+        println!("universe_hash_i: {}", universe_hash_i);
     }
 
     #[test]
     fn performance_test_tick() {
         let mut universe = Universe2D::new(100, 100000);
+        universe.set_hyper_params(HyperParams::new(0.5, 0.5, 1.0 / 10.0));
 
         let start = Instant::now();
 
@@ -376,6 +425,6 @@ mod test {
             universe.tick();
         }
         // 2.651681208s
-        println!("{:?}", start.elapsed());
+        println!("{:?} \n{}", start.elapsed(), universe);
     }
 }

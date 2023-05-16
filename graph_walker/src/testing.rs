@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod test_1 {
     use std::{
         collections::HashMap,

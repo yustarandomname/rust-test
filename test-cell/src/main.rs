@@ -29,7 +29,7 @@ pub struct Cell {
     y: u32,
 
     agents: HashSet<Agent>,
-    grafitti: HashMap<AgentSpecies, f32>,
+    graffiti: HashMap<AgentSpecies, f32>,
     pull_strength: HashMap<AgentSpecies, f32>,
 }
 
@@ -39,7 +39,7 @@ impl Cell {
             x,
             y,
             agents: HashSet::new(),
-            grafitti: HashMap::new(),
+            graffiti: HashMap::new(),
             pull_strength: HashMap::new(),
         }
     }

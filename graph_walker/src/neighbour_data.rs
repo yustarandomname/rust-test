@@ -79,6 +79,7 @@ impl Iterator for NeighboursIntoIterator {
     }
 }
 
+#[cfg(test)]
 mod test_neighbours {
     use super::*;
 

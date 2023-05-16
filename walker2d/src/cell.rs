@@ -16,7 +16,7 @@ pub struct Cell {
 
     pub agents: HashSet<Agent>,
     pub pull_strength: HashMap<AgentSpecies, f32>,
-    grafitti: HashMap<AgentSpecies, f32>,
+    graffiti: HashMap<AgentSpecies, f32>,
     hyper_params: HyperParams,
 }
 
@@ -38,14 +38,14 @@ impl Cell {
             x,
             y,
             agents: HashSet::new(),
-            grafitti: HashMap::new(),
+            graffiti: HashMap::new(),
             pull_strength: HashMap::new(),
             hyper_params,
         }
     }
 
     /**
-     * Reset the cell to its initial (agent, grafitti & pull_strength) state
+     * Reset the cell to its initial (agent, graffiti & pull_strength) state
      *
      * ## examples
      * ```
@@ -61,12 +61,12 @@ impl Cell {
     pub fn reset(&mut self) {
         self.agents = HashSet::new();
         self.pull_strength = HashMap::new();
-        self.grafitti = HashMap::new();
+        self.graffiti = HashMap::new();
     }
 
     pub fn increment_graffiti(&mut self, grid_size: u32) {
         for species in AgentSpecies::iter() {
-            let entry: &mut f32 = self.grafitti.entry(species.clone()).or_insert(0.0);
+            let entry: &mut f32 = self.graffiti.entry(species.clone()).or_insert(0.0);
 
             // 0 - Decrease graffiti
             *entry *= self.hyper_params.lambda;
