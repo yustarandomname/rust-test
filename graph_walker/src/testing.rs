@@ -8,7 +8,7 @@ mod test_1 {
     use rand::Rng;
     use rayon::prelude::*;
 
-    use crate::{neighbour_data::NeigbourIndeces, AgentSpecies, Node};
+    use crate::{agent_species::AgentSpecies, neighbour_data::NeigbourIndeces, node::Node};
 
     fn default_node() -> Node {
         let mut edges = HashMap::new();
