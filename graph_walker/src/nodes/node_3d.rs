@@ -4,31 +4,31 @@ use std::{collections::HashMap, f32::consts::E};
 use crate::{
     agent_species::AgentSpecies,
     hyper_params::HyperParams,
-    neighbour_data::{NeigbourIndeces2D, NeighbourAgentsOut2D, NeighbourData, NeighbourData2D},
+    neighbour_data::{NeigbourIndeces3D, NeighbourAgentsOut3D, NeighbourData, NeighbourData3D},
     species::{SpeciesGraffiti, SpeciesPushStrength},
 };
 
 #[derive(Debug, Clone)]
-pub struct Node {
+pub struct Node3D {
     pub index: u32,
-    pub neighbours: NeigbourIndeces2D,      // indices of neighbours
+    pub neighbours: NeigbourIndeces3D,      // indices of neighbours
     pub graffiti: SpeciesGraffiti,          // {Red_graffiti, Blue_graffiti}
     pub push_strength: SpeciesPushStrength, // {Red_graffiti, Blue_graffiti}
     pub blue_agents: u32,
     pub red_agents: u32,
-    pub agents_out: [NeighbourAgentsOut2D; 2], // amount of outgoing agents per species
+    pub agents_out: [NeighbourAgentsOut3D; 2], // amount of outgoing agents per species
 }
 
-impl Node {
-    pub fn new(index: u32, edges: &HashMap<u32, NeigbourIndeces2D>) -> Node {
-        Node {
+impl Node3D {
+    pub fn new(index: u32, edges: &HashMap<u32, NeigbourIndeces3D>) -> Node3D {
+        Node3D {
             index,
             neighbours: edges.get(&index).unwrap().to_owned(),
             graffiti: SpeciesGraffiti::new(0.0, 0.0),
             push_strength: SpeciesPushStrength::new(0.0, 0.0),
             blue_agents: 0,
             red_agents: 0,
-            agents_out: [NeighbourAgentsOut2D::new(0, 0, 0, 0); 2],
+            agents_out: [NeighbourAgentsOut3D::new(0, 0, 0, 0, 0, 0); 2],
         }
     }
 
@@ -69,7 +69,7 @@ impl Node {
         hyper_params: &HyperParams,
         _grid_size: u32,
     ) {
-        let l_squared: f32 = 1.0; //(1.0 / grid_size as f32).powf(2.0);
+        let l_squared: f32 = 1.0; //(1.0 / grid_size as f32).powf(3.0); // TODO: ask if this is correct and 3.0 is correct
                                   // TODO: check if algorithm still works with grid_size
 
         // 0 - Decrement current graffiti by lambda
@@ -88,7 +88,7 @@ impl Node {
             .set_blue(E.powf(-hyper_params.beta * self.graffiti.blue / l_squared));
     }
 
-    pub fn move_agents_out(&mut self, nodes: &Vec<Node>, _grid_size: u32) {
+    pub fn move_agents_out(&mut self, nodes: &Vec<Node3D>, _grid_size: u32) {
         let neighbours_idx = &self.neighbours;
 
         // 1 - Calculate neighbour strengths
@@ -110,8 +110,8 @@ impl Node {
         let neighbour_push_stengths: (Vec<f32>, Vec<f32>) = neighbour_push_stengths_iter.unzip(); // Vec<(ps1_red, ps2_blue), (ps_2_red, ps2_blue)> => (Vec(ps1_red, ps_2_red), Vec(ps1_blue, ps2_blue))
         assert!(neighbour_push_stengths.0.len() == neighbour_push_stengths.1.len());
 
-        let mut red_agents_out = NeigbourIndeces2D::new(0, 0, 0, 0);
-        let mut blue_agents_out = NeigbourIndeces2D::new(0, 0, 0, 0);
+        let mut red_agents_out = NeigbourIndeces3D::new(0, 0, 0, 0, 0, 0);
+        let mut blue_agents_out = NeigbourIndeces3D::new(0, 0, 0, 0, 0, 0);
         let mut prng = self.get_prng();
 
         // 2 - Move agents out
@@ -134,7 +134,7 @@ impl Node {
         self.agents_out = [red_agents_out, blue_agents_out];
     }
 
-    pub fn move_agents_in(&mut self, nodes: &Vec<Node>) {
+    pub fn move_agents_in(&mut self, nodes: &Vec<Node3D>) {
         let neighbours_idx = &self.neighbours.clone();
         self.red_agents = 0;
         self.blue_agents = 0;
@@ -162,5 +162,17 @@ impl Node {
         let left_node_agents = nodes[left_idx as usize].agents_out;
         self.add_agents(left_node_agents[0].right, AgentSpecies::Red); // left_node_agents[0] is the red agents out of the left neighbour
         self.add_agents(left_node_agents[1].right, AgentSpecies::Blue); // left_node_agents[1] is the blue agents out of the left neighbour
+
+        // Move agents from the front neighbour to this node which is at the back of the front neighbour
+        let front_idx = neighbours_idx.front;
+        let front_node_agents = nodes[front_idx as usize].agents_out;
+        self.add_agents(front_node_agents[0].back, AgentSpecies::Red); // front_node_agents[0] is the red agents out of the front neighbour
+        self.add_agents(front_node_agents[1].back, AgentSpecies::Blue); // front_node_agents[1] is the blue agents out of the front neighbour
+
+        // Move agents from the back neighbour to this node which is at the front of the back neighbour
+        let back_idx = neighbours_idx.back;
+        let back_node_agents = nodes[back_idx as usize].agents_out;
+        self.add_agents(back_node_agents[0].front, AgentSpecies::Red); // back_node_agents[0] is the red agents out of the back neighbour
+        self.add_agents(back_node_agents[1].front, AgentSpecies::Blue); // back_node_agents[1] is the blue agents out of the back neighbour
     }
 }

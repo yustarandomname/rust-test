@@ -3,16 +3,16 @@ use crate::{
     agent_species::AgentSpecies,
     hyper_params::HyperParams,
     neighbour_data::{NeigbourIndeces3D, NeighbourData3D},
-    node::Node,
+    nodes::Node3D,
 };
 use oorandom::Rand32;
-// use pad::PadStr;
+use pad::PadStr;
 use rayon::prelude::*;
 use std::{collections::HashMap, fmt};
 
 pub struct Universe3D {
     size: u32,
-    nodes: Vec<Node>,
+    nodes: Vec<Node3D>,
     iteration: u32,
     hyper_params: HyperParams,
 }
@@ -49,11 +49,9 @@ impl Universe for Universe3D {
             }
         }
 
-        let mut nodes: Vec<Node> = (0..(size * size * size))
-            .map(|index| todo!("re-implement Node to accept 3d edges"))
+        let mut nodes: Vec<Node3D> = (0..(size * size * size))
+            .map(|index| Node3D::new(index, &edges))
             .collect();
-        // .map(|index| Node::new(index, &edges))
-        // .collect();
 
         // Set initial agents
         (0..agent_size * 2).for_each(|id| {
@@ -99,6 +97,12 @@ impl Universe for Universe3D {
 
         self.iteration += 1;
     }
+
+    fn iterate(&mut self, iterations: u32) {
+        for _ in 0..iterations {
+            self.tick();
+        }
+    }
 }
 
 impl fmt::Debug for Universe3D {
@@ -113,26 +117,26 @@ impl fmt::Debug for Universe3D {
         for z in 0..self.size {
             for y in 0..self.size {
                 for x in 0..self.size {
-                    let index: u32 = todo!("get right index");
-                    // let node = &self.nodes[index as usize];
+                    let index: u32 = z * (self.size * self.size) + y * self.size + x;
+                    let node = &self.nodes[index as usize];
 
-                    // let blue_agents =
-                    //     self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Blue);
-                    // let red_agents =
-                    //     self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Red);
+                    let blue_agents =
+                        self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Blue);
+                    let red_agents =
+                        self.nodes[index as usize].get_agents_with_species(&AgentSpecies::Red);
 
-                    // let blue_graffiti = node.blue_agents;
-                    // let red_graffiti = node.red_agents;
+                    let blue_graffiti = node.blue_agents;
+                    let red_graffiti = node.red_agents;
 
-                    // write!(
-                    //     f,
-                    //     "|{} a({},{}) g:({},{})",
-                    //     index.to_string().with_exact_width(2),
-                    //     blue_agents.to_string().with_exact_width(2),
-                    //     red_agents.to_string().with_exact_width(2),
-                    //     blue_graffiti.to_string().with_exact_width(4),
-                    //     red_graffiti.to_string().with_exact_width(4)
-                    // )?;
+                    write!(
+                        f,
+                        "|{} a({},{}) g:({},{})",
+                        index.to_string().with_exact_width(2),
+                        blue_agents.to_string().with_exact_width(2),
+                        red_agents.to_string().with_exact_width(2),
+                        blue_graffiti.to_string().with_exact_width(4),
+                        red_graffiti.to_string().with_exact_width(4)
+                    )?;
                 }
                 write!(f, "|\n")?;
             }
@@ -149,7 +153,30 @@ impl fmt::Display for Universe3D {
         write!(f, "node size: {}\n", self.nodes.len())?;
         write!(f, "iterations: {}\n", self.iteration)?;
 
-        // TODO: add more info
+        for z in 0..self.size {
+            write!(f, "z: {}\n", z)?;
+            for y in 0..self.size {
+                for x in 0..self.size {
+                    let index = z * (self.size * self.size) + y * self.size + x;
+                    let node = &self.nodes[index as usize];
+
+                    let blue_graffiti = node.graffiti.blue;
+                    let red_graffiti = node.graffiti.red;
+
+                    let delta = blue_graffiti - red_graffiti;
+
+                    if delta.abs() < 0.1 {
+                        write!(f, "🟩")?;
+                    } else if delta > 0.0 {
+                        write!(f, "🟦")?;
+                    } else {
+                        write!(f, "🟥")?;
+                    }
+                }
+                write!(f, "\n")?;
+            }
+            write!(f, "\n")?;
+        }
 
         write!(f, "")
     }

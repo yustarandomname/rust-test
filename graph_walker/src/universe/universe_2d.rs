@@ -1,7 +1,10 @@
 use super::universe::Universe;
 use crate::{
-    agent_species::AgentSpecies, hyper_params::HyperParams, neighbour_data::NeigbourIndeces2D,
-    neighbour_data::NeighbourData2D, node::Node,
+    agent_species::AgentSpecies,
+    hyper_params::HyperParams,
+    neighbour_data::NeigbourIndeces2D,
+    neighbour_data::NeighbourData2D,
+    nodes::{Node, Node2D},
 };
 use oorandom::Rand32;
 use pad::PadStr;
@@ -10,7 +13,7 @@ use std::{collections::HashMap, fmt};
 
 pub struct Universe2D {
     size: u32,
-    nodes: Vec<Node>,
+    nodes: Vec<Node2D>,
     iteration: u32,
     hyper_params: HyperParams,
 }
@@ -37,8 +40,8 @@ impl Universe for Universe2D {
             }
         }
 
-        let mut nodes: Vec<Node> = (0..(size * size))
-            .map(|index| Node::new(index, &edges))
+        let mut nodes: Vec<Node2D> = (0..(size * size))
+            .map(|index| Node2D::new(index, &edges))
             .collect();
 
         // Set initial agents
@@ -84,6 +87,12 @@ impl Universe for Universe2D {
         });
 
         self.iteration += 1;
+    }
+
+    fn iterate(&mut self, iterations: u32) {
+        for _ in 0..iterations {
+            self.tick();
+        }
     }
 }
 

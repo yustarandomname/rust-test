@@ -11,13 +11,13 @@ mod test_1 {
     use crate::{
         agent_species::AgentSpecies,
         neighbour_data::{NeigbourIndeces2D, NeighbourData2D},
-        node::Node,
+        nodes::{Node, Node2D},
     };
 
-    fn default_node() -> Node {
+    fn default_node() -> Node2D {
         let mut edges = HashMap::new();
         edges.insert(0, NeigbourIndeces2D::new(1, 2, 3, 4));
-        let node = Node::new(0, &edges);
+        let node = Node2D::new(0, &edges);
 
         assert_eq!(node.blue_agents, 0);
         assert_eq!(node.red_agents, 0);
