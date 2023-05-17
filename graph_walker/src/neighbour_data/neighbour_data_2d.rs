@@ -1,10 +1,9 @@
 use oorandom::Rand32;
 
-pub type NeigbourIndeces = Neighbours;
-pub type NeighbourAgentsOut = Neighbours;
+use super::neighbour_data::{NeighbourData, NeighbourData2D};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Neighbours {
+pub struct Neighbours2D {
     pub top: u32,
     pub bottom: u32,
     pub left: u32,
@@ -12,18 +11,8 @@ pub struct Neighbours {
     pub size: u32,
 }
 
-impl Neighbours {
-    pub fn new(top: u32, right: u32, bottom: u32, left: u32) -> Neighbours {
-        Neighbours {
-            top,
-            bottom,
-            left,
-            right,
-            size: 4,
-        }
-    }
-
-    pub fn add_agent_to_random_cell(
+impl NeighbourData for Neighbours2D {
+    fn add_agent_to_random_cell(
         &mut self,
         neighbour_push_stengths: &Vec<f32>,
         total_neighbour_push_stengths: f32,
@@ -47,24 +36,36 @@ impl Neighbours {
     }
 }
 
-impl IntoIterator for Neighbours {
+impl NeighbourData2D for Neighbours2D {
+    fn new(top: u32, right: u32, bottom: u32, left: u32) -> Neighbours2D {
+        Neighbours2D {
+            top,
+            bottom,
+            left,
+            right,
+            size: 4,
+        }
+    }
+}
+
+impl IntoIterator for Neighbours2D {
     type Item = u32;
-    type IntoIter = NeighboursIntoIterator;
+    type IntoIter = NeighboursIntoIterator2D;
 
     fn into_iter(self) -> Self::IntoIter {
-        NeighboursIntoIterator {
+        NeighboursIntoIterator2D {
             neighbours: self,
             index: 0,
         }
     }
 }
 
-pub struct NeighboursIntoIterator {
-    neighbours: Neighbours,
+pub struct NeighboursIntoIterator2D {
+    neighbours: Neighbours2D,
     index: u32,
 }
 
-impl Iterator for NeighboursIntoIterator {
+impl Iterator for NeighboursIntoIterator2D {
     type Item = u32;
     fn next(&mut self) -> Option<u32> {
         let result = match self.index {
@@ -85,7 +86,7 @@ mod test_neighbours {
 
     #[test]
     fn test_into_iter() {
-        let neighbours_idx = Neighbours::new(1, 2, 3, 4);
+        let neighbours_idx = Neighbours2D::new(1, 2, 3, 4);
         let mut iter = neighbours_idx.into_iter();
         assert_eq!(iter.next(), Some(1));
         assert_eq!(iter.next(), Some(2));
@@ -97,7 +98,7 @@ mod test_neighbours {
 
     #[test]
     fn test_add_agent_to_random_cell1() {
-        let mut neighbours_out = Neighbours::new(0, 0, 0, 0);
+        let mut neighbours_out = Neighbours2D::new(0, 0, 0, 0);
 
         let neighbour_push_stength = vec![1.0, 0.0, 0.0, 0.0]; // chance of choosing top is 1.0 others are 0.0
         let prng = &mut Rand32::new(0);
@@ -112,7 +113,7 @@ mod test_neighbours {
 
     #[test]
     fn test_add_agent_to_random_cell2() {
-        let mut neighbours_out = Neighbours::new(0, 0, 0, 0);
+        let mut neighbours_out = Neighbours2D::new(0, 0, 0, 0);
 
         let neighbour_push_stength = vec![1.0, 2.0, 3.0, 6.0]; // chance of choosing top is 1.0 others are 0.0
         let prng = &mut Rand32::new(0);

@@ -2,7 +2,7 @@
 mod test_end_to_end {
     use std::time::Instant;
 
-    use graph_walker::{hyper_params::HyperParams, universe::Universe2D};
+    use graph_walker::{hyper_params::HyperParams, universe::Universe, universe::Universe2D};
 
     #[test]
     fn performance_test_tick() {

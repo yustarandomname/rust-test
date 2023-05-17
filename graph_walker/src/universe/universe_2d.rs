@@ -1,12 +1,12 @@
+use super::universe::Universe;
+use crate::{
+    agent_species::AgentSpecies, hyper_params::HyperParams, neighbour_data::NeigbourIndeces2D,
+    neighbour_data::NeighbourData2D, node::Node,
+};
 use oorandom::Rand32;
 use pad::PadStr;
 use rayon::prelude::*;
 use std::{collections::HashMap, fmt};
-
-use crate::{
-    agent_species::AgentSpecies, hyper_params::HyperParams, neighbour_data::NeigbourIndeces,
-    node::Node,
-};
 
 pub struct Universe2D {
     size: u32,
@@ -15,11 +15,11 @@ pub struct Universe2D {
     hyper_params: HyperParams,
 }
 
-impl Universe2D {
-    pub fn new(size: u32, agent_size: u32) -> Universe2D {
+impl Universe for Universe2D {
+    fn new(size: u32, agent_size: u32) -> Universe2D {
         let mut prng = Rand32::new(100);
 
-        let mut edges: HashMap<u32, NeigbourIndeces> = HashMap::new(); // TODO: convert to array
+        let mut edges: HashMap<u32, NeigbourIndeces2D> = HashMap::new(); // TODO: convert to array
 
         for y in 0..size {
             for x in 0..size {
@@ -31,7 +31,7 @@ impl Universe2D {
                 let bottom_index = (y + 1) % size * size + x;
 
                 let new_edges =
-                    NeigbourIndeces::new(top_index, right_index, bottom_index, left_index);
+                    NeigbourIndeces2D::new(top_index, right_index, bottom_index, left_index);
 
                 edges.insert(index, new_edges);
             }
@@ -61,13 +61,11 @@ impl Universe2D {
         }
     }
 
-    pub fn set_hyper_params(&mut self, hyper_params: HyperParams) {
+    fn set_hyper_params(&mut self, hyper_params: HyperParams) {
         self.hyper_params = hyper_params;
     }
-}
 
-impl Universe2D {
-    pub fn tick(&mut self) {
+    fn tick(&mut self) {
         // 0) update graffiti in nodes
         self.nodes.par_iter_mut().for_each(|node| {
             node.update_graffiti_and_push_strength(&self.hyper_params, self.size);
@@ -161,7 +159,7 @@ impl fmt::Display for Universe2D {
 }
 
 #[cfg(test)]
-mod test {
+mod test_2d_universe {
     use crate::agent_species::AgentSpecies;
 
     use super::*;

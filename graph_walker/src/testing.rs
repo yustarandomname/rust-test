@@ -8,11 +8,15 @@ mod test_1 {
     use rand::Rng;
     use rayon::prelude::*;
 
-    use crate::{agent_species::AgentSpecies, neighbour_data::NeigbourIndeces, node::Node};
+    use crate::{
+        agent_species::AgentSpecies,
+        neighbour_data::{NeigbourIndeces2D, NeighbourData2D},
+        node::Node,
+    };
 
     fn default_node() -> Node {
         let mut edges = HashMap::new();
-        edges.insert(0, NeigbourIndeces::new(1, 2, 3, 4));
+        edges.insert(0, NeigbourIndeces2D::new(1, 2, 3, 4));
         let node = Node::new(0, &edges);
 
         assert_eq!(node.blue_agents, 0);

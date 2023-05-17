@@ -4,23 +4,23 @@ use std::{collections::HashMap, f32::consts::E};
 use crate::{
     agent_species::AgentSpecies,
     hyper_params::HyperParams,
-    neighbour_data::{NeigbourIndeces, NeighbourAgentsOut},
+    neighbour_data::{NeigbourIndeces2D, NeighbourAgentsOut2D, NeighbourData, NeighbourData2D},
     species::{SpeciesGraffiti, SpeciesPushStrength},
 };
 
 #[derive(Debug, Clone)]
 pub struct Node {
     pub index: u32,
-    pub neighbours: NeigbourIndeces,        // indices of neighbours
+    pub neighbours: NeigbourIndeces2D,      // indices of neighbours
     pub graffiti: SpeciesGraffiti,          // {Red_graffiti, Blue_graffiti}
     pub push_strength: SpeciesPushStrength, // {Red_graffiti, Blue_graffiti}
     pub blue_agents: u32,
     pub red_agents: u32,
-    pub agents_out: [NeighbourAgentsOut; 2], // amount of outgoing agents per species
+    pub agents_out: [NeighbourAgentsOut2D; 2], // amount of outgoing agents per species
 }
 
 impl Node {
-    pub fn new(index: u32, edges: &HashMap<u32, NeigbourIndeces>) -> Node {
+    pub fn new(index: u32, edges: &HashMap<u32, NeigbourIndeces2D>) -> Node {
         Node {
             index,
             neighbours: edges.get(&index).unwrap().to_owned(),
@@ -28,7 +28,7 @@ impl Node {
             push_strength: SpeciesPushStrength::new(0.0, 0.0),
             blue_agents: 0,
             red_agents: 0,
-            agents_out: [NeighbourAgentsOut::new(0, 0, 0, 0); 2],
+            agents_out: [NeighbourAgentsOut2D::new(0, 0, 0, 0); 2],
         }
     }
 
@@ -110,8 +110,8 @@ impl Node {
         let neighbour_push_stengths: (Vec<f32>, Vec<f32>) = neighbour_push_stengths_iter.unzip(); // Vec<(ps1_red, ps2_blue), (ps_2_red, ps2_blue)> => (Vec(ps1_red, ps_2_red), Vec(ps1_blue, ps2_blue))
         assert!(neighbour_push_stengths.0.len() == neighbour_push_stengths.1.len());
 
-        let mut red_agents_out = NeigbourIndeces::new(0, 0, 0, 0);
-        let mut blue_agents_out = NeigbourIndeces::new(0, 0, 0, 0);
+        let mut red_agents_out = NeigbourIndeces2D::new(0, 0, 0, 0);
+        let mut blue_agents_out = NeigbourIndeces2D::new(0, 0, 0, 0);
         let mut prng = self.get_prng();
 
         // 2 - Move agents out
